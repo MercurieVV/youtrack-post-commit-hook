@@ -24,6 +24,8 @@ class YouTrackConnection(object):
         self.base_path = "/rest"
         if self._login(username, password):
             self.connected = True
+        else:
+            self.connected = False
 
     def _login(self, username, password):
         login_path = self.base_path + "/user/login"
@@ -36,6 +38,7 @@ class YouTrackConnection(object):
         self.http.request('POST', login_path, body, headers)
         response = self.http.getresponse()
         data = response.read()
+        print(data)
 
         self.headers = {'Cookie': response.getheader('set-cookie'), 'Cache-Control': 'no-cache'}
 
@@ -52,13 +55,16 @@ class YouTrackConnection(object):
             headers['Content-Type'] = 'application/xml; charset=UTF-8'
             headers['Content-Length'] = str(len(body))
 
-        self.http.request(method, "http://" + self.base_path + uri, body, headers)
+        print((self.base_path + uri + "\n"))
+        self.http.request(method, self.base_path + uri, body, headers)
         response = self.http.getresponse()
         print((response.status))
-        print((response.reason))
+        print((response.reason + "\n"))
         data = response.read()
+        print(data.decode() + "\n")
+        return data
 
-    def execute(self, issueId, command, comment=None, group=None):
+    def execute(self, issueId, command, comment=None, group=None, runAs=None):
         params = {'command': command}
 
         if comment is not None:
@@ -67,9 +73,17 @@ class YouTrackConnection(object):
         if group is not None:
             params['group'] = group
 
+        if runAs is not None:
+            params['runAs'] = runAs
+
         self._req('POST', '/issue/' + issueId + "/execute?" + urllib.parse.urlencode(params), body='')
 
         return True
+
+    def runAs(self, userEmail):
+        users = self._req('GET', '/admin/user?' + urllib.parse.urlencode({'q': userEmail}))
+        user = re.findall(r'login\="([^"]*)"', users.decode())[0]
+        return user
 
 
 if __name__ == "__main__":
@@ -77,6 +91,7 @@ if __name__ == "__main__":
     import re
 
     message = subprocess.Popen(['git', 'log', '-1', '--pretty=%B'], stdout=subprocess.PIPE).communicate()[0].decode()
+    email = subprocess.Popen(['git', 'log', '-1', '--pretty=%ce'], stdout=subprocess.PIPE).communicate()[0].decode()
     commit_hash = subprocess.Popen(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).communicate()[0]
     issue_re = re.compile(r'([A-Z]{1,10}-[0-9]*).*')
     command_re = re.compile(r'[A-Z]{1,10}-[0-9]*\s*([a-zA-Z]*)')
@@ -84,12 +99,12 @@ if __name__ == "__main__":
     issue_id = re.findall(issue_re, message)
     command = re.findall(command_re, message)
     if command:
-        command = [0].lower()
+        command = command[0].lower()
     print((message, commit_hash, issue_id, command))
     if issue_id:
         c = YouTrackConnection(username, password, youtrack_base_url)
         if c.connected:
-            runAs = c.runAs()
+            runAs = c.runAs(email)
             if command:
                 if command == "fix":
                     command = "Fixed"
@@ -98,5 +113,8 @@ if __name__ == "__main__":
                 command = "State " + command.title()
             if issue_id and not command:
                 command = "tag WIP"
-            c.execute(issue_id[0], command,
-                      message + "\n [" + git_url_pattern % commit_hash.strip() + "see commit]")
+            c.execute(issue_id[0]
+                      , command
+                      , message + "\n [" + git_url_pattern % commit_hash.strip() + "see commit]"
+                      , None
+                      , runAs)
