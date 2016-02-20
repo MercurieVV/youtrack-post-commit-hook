@@ -8,7 +8,7 @@ import urllib.request, urllib.parse, urllib.error
 username = ""
 # youtrack password
 password = ""
-# youtrack base URL e.g.: http://youtrack.mydomain.tld:8080
+# youtrack base URL e.g.: youtrack.mydomain.tld:8080
 youtrack_base_url = ""
 # a url pattern for links to git commits
 # eg: https://bitbucket.org/user/repo/commits/%s 
