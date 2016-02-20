@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-import httplib
+import http.client
 import logging
-import urllib
+import urllib.request, urllib.parse, urllib.error
 
 # youtrack username
 username = ""
@@ -20,7 +20,7 @@ logging.basicConfig(filename='post-commit.log', level=logging.DEBUG)
 
 class YouTrackConnection(object):
     def __init__(self, username, password, url):
-        self.http = httplib.HTTPConnection(url)
+        self.http = http.client.HTTPConnection(url)
         self.base_path = "/rest"
         if self._login(username, password):
             self.connected = True
@@ -54,8 +54,8 @@ class YouTrackConnection(object):
 
         self.http.request(method, "http://" + self.base_path + uri, body, headers)
         response = self.http.getresponse()
-        print(response.status)
-        print(response.reason)
+        print((response.status))
+        print((response.reason))
         data = response.read()
 
     def execute(self, issueId, command, comment=None, group=None):
@@ -67,7 +67,7 @@ class YouTrackConnection(object):
         if group is not None:
             params['group'] = group
 
-        self._req('POST', '/issue/' + issueId + "/execute?" + urllib.urlencode(params), body='')
+        self._req('POST', '/issue/' + issueId + "/execute?" + urllib.parse.urlencode(params), body='')
 
         return True
 
@@ -76,22 +76,25 @@ if __name__ == "__main__":
     import subprocess
     import re
 
-    message = subprocess.Popen(['git', 'log', '-1', '--pretty=%B'], stdout=subprocess.PIPE).communicate()[0]
+    message = subprocess.Popen(['git', 'log', '-1', '--pretty=%B'], stdout=subprocess.PIPE).communicate()[0].decode()
     commit_hash = subprocess.Popen(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).communicate()[0]
-    issue_re = re.compile('([A-Z]{1,10}-[0-9]*).*')
-    command_re = re.compile('[A-Z]{1,10}-[0-9]*\s*([a-zA-Z]*)')
+    issue_re = re.compile(r'([A-Z]{1,10}-[0-9]*).*')
+    command_re = re.compile(r'[A-Z]{1,10}-[0-9]*\s*([a-zA-Z]*)')
 
     issue_id = re.findall(issue_re, message)
-    command = re.findall(command_re, message)[0].lower()
-    print(message, commit_hash, issue_id, command)
+    command = re.findall(command_re, message)
+    if command:
+        command = [0].lower()
+    print((message, commit_hash, issue_id, command))
     if issue_id:
         c = YouTrackConnection(username, password, youtrack_base_url)
         if c.connected:
+            runAs = c.runAs()
             if command:
                 if command == "fix":
                     command = "Fixed"
 
-                print("Fixing %s" % issue_id[0])
+                print(("Fixing %s" % issue_id[0]))
                 command = "State " + command.title()
             if issue_id and not command:
                 command = "tag WIP"
