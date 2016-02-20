@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import http.client
 import logging
@@ -15,7 +15,7 @@ youtrack_base_url = ""
 # or https://github.com/user/repo/commit/%s
 git_url_pattern = ""
 
-logging.basicConfig(filename='post-commit.log', level=logging.DEBUG)
+logging.basicConfig(filename='post-receive.log', level=logging.DEBUG)
 
 
 class YouTrackConnection(object):
@@ -92,7 +92,7 @@ if __name__ == "__main__":
 
     message = subprocess.Popen(['git', 'log', '-1', '--pretty=%B'], stdout=subprocess.PIPE).communicate()[0].decode()
     email = subprocess.Popen(['git', 'log', '-1', '--pretty=%ce'], stdout=subprocess.PIPE).communicate()[0].decode()
-    commit_hash = subprocess.Popen(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).communicate()[0]
+    commit_hash = subprocess.Popen(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE).communicate()[0].decode()
     issue_re = re.compile(r'([A-Z]{1,10}-[0-9]*).*')
     command_re = re.compile(r'[A-Z]{1,10}-[0-9]*\s*([a-zA-Z]*)')
 
